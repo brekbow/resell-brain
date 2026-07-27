@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Resell Brain</title>
+<style>
+  :root{
+    --bg:#1e1e2e; --panel:#181825; --panel2:#11111b; --line:#313244;
+    --text:#cdd6f4; --dim:#7f849c; --accent:#cba6f7;
+    --c-hub:#f9e2af; --c-prompt:#cba6f7; --c-rule:#f38ba8; --c-workflow:#89b4fa; --c-platform:#a6e3a1; --c-data:#fab387; --c-note:#94e2d5;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;overscroll-behavior:none}
+  #app{display:flex;height:100%}
+  #graphWrap{flex:1;position:relative;min-width:0}
+  canvas{display:block;width:100%;height:100%;cursor:grab;touch-action:none}
+
+  #topbar{position:absolute;top:10px;left:10px;right:10px;display:flex;gap:8px;align-items:center;pointer-events:none;z-index:5;flex-wrap:wrap}
+  #topbar>*{pointer-events:auto}
+  .btn{background:var(--panel);border:1px solid var(--line);color:var(--text);padding:7px 14px;border-radius:8px;font-size:13px;cursor:pointer;transition:.15s}
+  .btn:hover{border-color:var(--accent);color:var(--accent)}
+  .btn.primary{background:var(--accent);color:#11111b;border-color:var(--accent);font-weight:600}
+  .btn.primary:hover{filter:brightness(1.1)}
+  #search{background:var(--panel);border:1px solid var(--line);color:var(--text);padding:7px 12px;border-radius:8px;font-size:13px;width:160px;outline:none}
+  #search:focus{border-color:var(--accent)}
+  #status{font-size:12px;color:var(--dim);margin-left:auto;background:var(--panel);padding:6px 12px;border-radius:8px;border:1px solid var(--line)}
+
+  #zoomCtl{position:absolute;bottom:14px;right:14px;display:flex;flex-direction:column;gap:6px;z-index:5}
+  #zoomCtl .btn{width:38px;height:38px;font-size:18px;padding:0}
+
+  #legend{position:absolute;bottom:14px;left:14px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 14px;font-size:12px;z-index:5}
+  .lg{display:flex;align-items:center;gap:7px;margin:3px 0;color:var(--dim)}
+  .dot{width:10px;height:10px;border-radius:50%}
+
+  #welcome{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;z-index:10;background:var(--bg);padding:20px;overflow:auto}
+  #welcome h1{font-size:24px;font-weight:600}
+  #welcome p{color:var(--dim);max-width:420px;text-align:center;line-height:1.6;font-size:13px}
+  .field{width:300px}
+  .field label{font-size:11px;color:var(--dim);text-transform:uppercase;letter-spacing:.5px}
+  .field input{width:100%;background:var(--panel);border:1px solid var(--line);color:var(--text);padding:9px 12px;border-radius:8px;font-size:13px;outline:none;margin-top:3px}
+  .field input:focus{border-color:var(--accent)}
+  #ghErr{color:var(--c-rule);font-size:13px;max-width:340px;text-align:center}
+
+  #side{width:0;transition:width .2s;background:var(--panel);border-left:1px solid var(--line);display:flex;flex-direction:column;overflow:hidden}
+  #side.open{width:440px}
+  @media (max-width:800px){ #side.open{position:absolute;inset:0;width:100%!important;z-index:8} }
+  #sideHead{padding:16px 18px 10px;border-bottom:1px solid var(--line)}
+  #sideTitleRow{display:flex;align-items:center;gap:10px}
+  #sideTitle{font-size:17px;font-weight:600;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .badge{font-size:11px;padding:3px 10px;border-radius:20px;color:#11111b;font-weight:600;text-transform:uppercase;letter-spacing:.5px}
+  #closeSide{background:none;border:none;color:var(--dim);font-size:20px;cursor:pointer;line-height:1}
+  #closeSide:hover{color:var(--text)}
+  #sideLinks{font-size:12px;color:var(--dim);margin-top:8px;line-height:1.7}
+  #sideLinks a{color:var(--accent);cursor:pointer;text-decoration:none}
+  #sideLinks a:hover{text-decoration:underline}
+  #editor{flex:1;width:100%;background:var(--panel2);color:var(--text);border:none;outline:none;resize:none;padding:16px 18px;font-family:'Cascadia Code',Consolas,monospace;font-size:13px;line-height:1.65;tab-size:2}
+  #sideFoot{display:flex;gap:8px;padding:12px 18px;border-top:1px solid var(--line);align-items:center}
+  #dirty{color:var(--c-data);font-size:12px;display:none}
+  .btn.danger:hover{border-color:var(--c-rule);color:var(--c-rule)}
+
+  dialog{background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:12px;padding:22px;width:340px;max-width:92vw}
+  dialog::backdrop{background:rgba(0,0,0,.55)}
+  dialog h3{margin-bottom:14px;font-size:16px}
+  dialog input,dialog select{width:100%;background:var(--panel2);border:1px solid var(--line);color:var(--text);padding:9px 12px;border-radius:8px;font-size:13px;margin-bottom:12px;outline:none}
+  dialog input:focus{border-color:var(--accent)}
+  .dlgRow{display:flex;gap:8px;justify-content:flex-end}
+  #toast{position:absolute;bottom:16px;left:50%;transform:translateX(-50%);background:var(--panel);border:1px solid var(--accent);color:var(--text);padding:9px 18px;border-radius:8px;font-size:13px;opacity:0;transition:.3s;z-index:20;pointer-events:none;white-space:nowrap}
+  #toast.show{opacity:1}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="graphWrap">
+    <canvas id="cv"></canvas>
+    <div id="topbar" style="display:none">
+      <input id="search" placeholder="Search…">
+      <button class="btn" id="newNode">+ New</button>
+      <button class="btn" id="rescan">↻</button>
+      <button class="btn" id="settingsBtn">⚙</button>
+      <div id="status"></div>
+    </div>
+    <div id="zoomCtl" style="display:none">
+      <button class="btn" id="zin">+</button><button class="btn" id="zout">−</button>
+    </div>
+    <div id="legend" style="display:none"></div>
+    <div id="welcome">
+      <h1>🧠 Resell Brain</h1>
+      <p>Every prompt and rule that runs the resell operation, as a living graph — served from GitHub, editable from any device. Claude reads these exact files before every run.</p>
+      <div class="field"><label>GitHub username</label><input id="ghOwner" placeholder="your GitHub username"></div>
+      <div class="field"><label>Repo name</label><input id="ghRepo" value="resell-brain"></div>
+      <div class="field"><label>Branch</label><input id="ghBranch" value="main"></div>
+      <div class="field"><label>Fine-grained token (for editing — stays in this browser only)</label><input id="ghToken" type="password" placeholder="github_pat_… (blank = view only)"></div>
+      <button class="btn primary" id="connectBtn" style="padding:11px 30px;font-size:14px">Connect</button>
+      <div id="ghErr"></div>
+    </div>
+  </div>
+  <div id="side">
+    <div id="sideHead">
+      <div id="sideTitleRow">
+        <span class="badge" id="sideBadge"></span>
+        <div id="sideTitle"></div>
+        <button id="closeSide">✕</button>
+      </div>
+      <div id="sideLinks"></div>
+    </div>
+    <textarea id="editor" spellcheck="false"></textarea>
+    <div id="sideFoot">
+      <button class="btn primary" id="saveBtn">Save</button>
+      <span id="dirty">● unsaved</span>
+      <span style="flex:1"></span>
+      <button class="btn danger" id="delBtn">Delete</button>
+    </div>
+  </div>
+</div>
+
+<dialog id="newDlg">
+  <h3>New node</h3>
+  <input id="nnName" placeholder="node-name (kebab-case)">
+  <select id="nnType">
+    <option value="rule">rule</option><option value="prompt">prompt</option>
+    <option value="workflow">workflow</option><option value="platform">platform</option>
+    <option value="data">data</option><option value="note">note</option>
+  </select>
+  <div class="dlgRow"><button class="btn" id="nnCancel">Cancel</button><button class="btn primary" id="nnCreate">Create</button></div>
+</dialog>
+<div id="toast"></div>
+
+<script>
+const TYPE_COLORS={hub:'--c-hub',prompt:'--c-prompt',rule:'--c-rule',workflow:'--c-workflow',platform:'--c-platform',data:'--c-data',note:'--c-note'};
+const css=v=>getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+let gh=null, nodes=[], links=[], byName={}, selected=null, hovered=null;
+let cam={x:0,y:0,z:1}, dragNode=null, panning=false, lastM=null, searchTerm='', heat=1;
+const cv=document.getElementById('cv'), ctx=cv.getContext('2d');
+const $=id=>document.getElementById(id);
+
+// ---------- github i/o ----------
+const b64enc=s=>btoa(unescape(encodeURIComponent(s)));
+const b64dec=s=>decodeURIComponent(escape(atob(s.replace(/\n/g,''))));
+async function api(path,method='GET',body=null){
+  const h={'Accept':'application/vnd.github+json'};
+  if(gh.token) h['Authorization']='Bearer '+gh.token;
+  const r=await fetch(`https://api.github.com/repos/${gh.owner}/${gh.repo}${path}`,{method,headers:h,body:body?JSON.stringify(body):null});
+  if(!r.ok){const t=await r.json().catch(()=>({}));throw new Error(r.status+' '+(t.message||r.statusText))}
+  return r.status===204?null:r.json();
+}
+function parseFront(text){
+  let m=text.match(/^---\n([\s\S]*?)\n---/), fm={};
+  if(m){for(const line of m[1].split('\n')){let i=line.indexOf(':');if(i>0)fm[line.slice(0,i).trim()]=line.slice(i+1).trim().replace(/^["']|["']$/g,'')}}
+  return fm;
+}
+async function loadAll(){
+  const savedPos=JSON.parse(localStorage.getItem('brainPos')||'{}');
+  const old=Object.fromEntries(nodes.map(n=>[n.file,n]));
+  const list=(await api(`/contents/Brain?ref=${gh.branch}`)).filter(f=>f.type==='file'&&f.name.endsWith('.md'));
+  const loaded=await Promise.all(list.map(async f=>{
+    const d=await api(`/contents/Brain/${encodeURIComponent(f.name)}?ref=${gh.branch}`);
+    return {file:f.name, sha:d.sha, text:b64dec(d.content)};
+  }));
+  nodes=[];links=[];byName={};
+  for(const it of loaded){
+    const fm=parseFront(it.text), id=it.file.replace(/\.md$/,'');
+    const n={id,file:it.file,sha:it.sha,text:it.text,type:(fm.type||'note').toLowerCase(),desc:fm.description||'',x:0,y:0,vx:0,vy:0,pinned:false};
+    const p=old[it.file]||savedPos[it.file];
+    if(p){n.x=p.x;n.y=p.y;n.pinned=!!p.pinned}
+    else{const a=Math.random()*Math.PI*2,r=120+Math.random()*220;n.x=Math.cos(a)*r;n.y=Math.sin(a)*r}
+    nodes.push(n);byName[id.toLowerCase()]=n;
+  }
+  for(const n of nodes){
+    n.out=[...n.text.matchAll(/\[\[([^\]|]+?)(?:\|[^\]]*)?\]\]/g)].map(m=>m[1].trim().toLowerCase());
+    for(const t of n.out){if(byName[t]&&byName[t]!==n)links.push({a:n,b:byName[t]})}
+  }
+  for(const n of nodes)n.deg=links.filter(l=>l.a===n||l.b===n).length;
+  $('status').textContent=nodes.length+' nodes · '+links.length+' links'+(gh.token?'':' · view-only');
+  if(selected){selected=byName[selected.id.toLowerCase()]||null;if(selected)openNode(selected,false);else closeSide()}
+  heat=1;
+}
+function savePositions(){
+  const o={};for(const n of nodes)o[n.file]={x:Math.round(n.x),y:Math.round(n.y),pinned:n.pinned};
+  localStorage.setItem('brainPos',JSON.stringify(o));
+}
+
+// ---------- connect ----------
+async function connect(){
+  gh={owner:$('ghOwner').value.trim(),repo:$('ghRepo').value.trim(),branch:$('ghBranch').value.trim()||'main',token:$('ghToken').value.trim()};
+  if(!gh.owner||!gh.repo){$('ghErr').textContent='Username and repo are required.';return}
+  $('ghErr').textContent='';$('connectBtn').textContent='Connecting…';
+  try{
+    await loadAll();
+    localStorage.setItem('brainGH',JSON.stringify(gh));
+    $('welcome').style.display='none';
+    $('topbar').style.display='flex';$('zoomCtl').style.display='flex';
+    buildLegend();
+  }catch(e){$('ghErr').textContent='Could not load: '+e.message+(e.message.includes('404')?' — check username/repo, and that Brain/ exists. Private repo needs a token.':'')}
+  $('connectBtn').textContent='Connect';
+}
+$('connectBtn').onclick=connect;
+$('settingsBtn').onclick=()=>{$('welcome').style.display='flex'};
+(function(){
+  const s=localStorage.getItem('brainGH');
+  if(s){const g=JSON.parse(s);$('ghOwner').value=g.owner;$('ghRepo').value=g.repo;$('ghBranch').value=g.branch;$('ghToken').value=g.token||'';connect()}
+})();
+
+// ---------- physics ----------
+function step(){
+  if(heat<0.005)return;
+  heat*=0.995;
+  for(let i=0;i<nodes.length;i++)for(let j=i+1;j<nodes.length;j++){
+    const a=nodes[i],b=nodes[j];
+    let dx=b.x-a.x,dy=b.y-a.y,d2=dx*dx+dy*dy||1,d=Math.sqrt(d2);
+    let f=Math.min(9000/d2,6)*heat;dx/=d;dy/=d;
+    if(!a.pinned&&a!==dragNode){a.vx-=dx*f;a.vy-=dy*f}
+    if(!b.pinned&&b!==dragNode){b.vx+=dx*f;b.vy+=dy*f}
+  }
+  for(const l of links){
+    let dx=l.b.x-l.a.x,dy=l.b.y-l.a.y,d=Math.sqrt(dx*dx+dy*dy)||1;
+    let f=(d-140)*0.012*heat;dx/=d;dy/=d;
+    if(!l.a.pinned&&l.a!==dragNode){l.a.vx+=dx*f;l.a.vy+=dy*f}
+    if(!l.b.pinned&&l.b!==dragNode){l.b.vx-=dx*f;l.b.vy-=dy*f}
+  }
+  for(const n of nodes){
+    if(n.pinned||n===dragNode){n.vx=0;n.vy=0;continue}
+    n.vx-=n.x*0.0012*heat;n.vy-=n.y*0.0012*heat;
+    n.vx*=0.85;n.vy*=0.85;n.x+=n.vx;n.y+=n.vy;
+  }
+}
+
+// ---------- render ----------
+function resize(){cv.width=cv.clientWidth*devicePixelRatio;cv.height=cv.clientHeight*devicePixelRatio}
+addEventListener('resize',resize);
+function nodeR(n){return 9+Math.min(n.deg*1.6,14)+(n.type==='hub'?4:0)}
+function toScreen(p){return{x:(p.x-cam.x)*cam.z+cv.width/2/devicePixelRatio,y:(p.y-cam.y)*cam.z+cv.height/2/devicePixelRatio}}
+function toWorld(p){return{x:(p.x-cv.width/2/devicePixelRatio)/cam.z+cam.x,y:(p.y-cv.height/2/devicePixelRatio)/cam.z+cam.y}}
+function neighbors(n){const s=new Set([n]);for(const l of links){if(l.a===n)s.add(l.b);if(l.b===n)s.add(l.a)}return s}
+function draw(){
+  step();
+  ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);
+  ctx.clearRect(0,0,cv.width,cv.height);
+  const focus=hovered||selected;
+  const hood=focus?neighbors(focus):null;
+  for(const l of links){
+    const A=toScreen(l.a),B=toScreen(l.b);
+    const active=focus&&(l.a===focus||l.b===focus);
+    ctx.strokeStyle=active?css('--accent'):css('--line');
+    ctx.globalAlpha=focus?(active?0.9:0.12):0.55;
+    ctx.lineWidth=active?1.8:1;
+    ctx.beginPath();ctx.moveTo(A.x,A.y);ctx.lineTo(B.x,B.y);ctx.stroke();
+  }
+  ctx.globalAlpha=1;
+  for(const n of nodes){
+    const s=toScreen(n),r=nodeR(n)*cam.z;
+    const color=css(TYPE_COLORS[n.type]||'--c-note');
+    let dimmed=(focus&&!hood.has(n))||(searchTerm&&!n.id.toLowerCase().includes(searchTerm));
+    ctx.globalAlpha=dimmed?0.15:1;
+    if(n===selected){ctx.beginPath();ctx.arc(s.x,s.y,r+5*cam.z,0,7);ctx.strokeStyle=css('--accent');ctx.lineWidth=2;ctx.stroke()}
+    ctx.beginPath();ctx.arc(s.x,s.y,r,0,7);
+    ctx.fillStyle=color;ctx.fill();
+    if(n.pinned){ctx.strokeStyle='#fff';ctx.lineWidth=1.5;ctx.stroke()}
+    if(cam.z>0.4){
+      ctx.fillStyle=dimmed?css('--dim'):css('--text');
+      ctx.font=(n===focus?'600 ':'')+Math.max(11,12*cam.z)+'px Segoe UI';
+      ctx.textAlign='center';
+      ctx.fillText(n.id,s.x,s.y+r+14*Math.max(cam.z,0.9));
+    }
+    ctx.globalAlpha=1;
+  }
+  requestAnimationFrame(draw);
+}
+function hit(mx,my){
+  for(let i=nodes.length-1;i>=0;i--){
+    const s=toScreen(nodes[i]);
+    if((mx-s.x)**2+(my-s.y)**2<(nodeR(nodes[i])*cam.z+8)**2)return nodes[i];
+  }
+  return null;
+}
+
+// ---------- interaction (pointer = mouse + touch) ----------
+cv.addEventListener('pointerdown',e=>{
+  cv.setPointerCapture(e.pointerId);
+  const n=hit(e.offsetX,e.offsetY);
+  if(n){dragNode=n;dragNode.moved=false}
+  else panning=true;
+  lastM={x:e.offsetX,y:e.offsetY};
+});
+cv.addEventListener('pointermove',e=>{
+  const mx=e.offsetX,my=e.offsetY;
+  if(dragNode){const w=toWorld({x:mx,y:my});dragNode.x=w.x;dragNode.y=w.y;dragNode.moved=true;heat=Math.max(heat,0.15)}
+  else if(panning){cam.x-=(mx-lastM.x)/cam.z;cam.y-=(my-lastM.y)/cam.z}
+  else hovered=hit(mx,my);
+  cv.style.cursor=hovered&&!panning?'pointer':'';
+  lastM={x:mx,y:my};
+});
+cv.addEventListener('pointerup',e=>{
+  if(dragNode){
+    if(!dragNode.moved)openNode(dragNode,false);
+    else dragNode.pinned=true;
+    savePositions();
+  }
+  dragNode=null;panning=false;
+});
+cv.addEventListener('dblclick',e=>{const n=hit(e.offsetX,e.offsetY);if(n){n.pinned=false;heat=0.5;savePositions()}});
+cv.addEventListener('wheel',e=>{
+  e.preventDefault();
+  zoomAt(e.deltaY<0?1.12:0.89,e.offsetX,e.offsetY);
+},{passive:false});
+function zoomAt(f,px,py){
+  const w=toWorld({x:px,y:py});
+  cam.z=Math.min(Math.max(cam.z*f,0.15),4);
+  const w2=toWorld({x:px,y:py});
+  cam.x+=w.x-w2.x;cam.y+=w.y-w2.y;
+}
+$('zin').onclick=()=>zoomAt(1.25,cv.clientWidth/2,cv.clientHeight/2);
+$('zout').onclick=()=>zoomAt(0.8,cv.clientWidth/2,cv.clientHeight/2);
+
+// ---------- editor ----------
+const side=$('side'),editor=$('editor'),dirty=$('dirty');
+function openNode(n,focusEditor){
+  if(selected&&editor.value!==selected.text&&!confirm('Discard unsaved changes to '+selected.id+'?'))return;
+  selected=n;
+  side.classList.add('open');
+  $('sideTitle').textContent=n.id;
+  const badge=$('sideBadge');
+  badge.textContent=n.type;badge.style.background=css(TYPE_COLORS[n.type]||'--c-note');
+  const inbound=links.filter(l=>l.b===n).map(l=>l.a.id);
+  const outbound=links.filter(l=>l.a===n).map(l=>l.b.id);
+  $('sideLinks').innerHTML=
+    (outbound.length?'→ '+outbound.map(t=>`<a data-n="${t}">${t}</a>`).join(' · ')+'<br>':'')+
+    (inbound.length?'← '+inbound.map(t=>`<a data-n="${t}">${t}</a>`).join(' · '):'');
+  document.querySelectorAll('#sideLinks a').forEach(a=>a.onclick=()=>{const t=byName[a.dataset.n.toLowerCase()];if(t)openNode(t,false)});
+  editor.value=n.text;dirty.style.display='none';
+  if(focusEditor)editor.focus();
+}
+function closeSide(){side.classList.remove('open');selected=null}
+$('closeSide').onclick=()=>{
+  if(selected&&editor.value!==selected.text&&!confirm('Discard unsaved changes?'))return;
+  closeSide();
+};
+editor.addEventListener('input',()=>{dirty.style.display=selected&&editor.value!==selected.text?'inline':'none'});
+async function saveCurrent(){
+  if(!selected)return;
+  if(!gh.token){toast('View-only — add a token in ⚙ settings to edit');return}
+  try{
+    const r=await api('/contents/Brain/'+encodeURIComponent(selected.file),'PUT',
+      {message:'edit '+selected.file+' via brain',content:b64enc(editor.value),sha:selected.sha,branch:gh.branch});
+    selected.text=editor.value;selected.sha=r.content.sha;
+    toast('Saved '+selected.file+' → GitHub');
+    await loadAll();
+  }catch(e){toast('Save failed: '+e.message)}
+}
+$('saveBtn').onclick=saveCurrent;
+addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key==='s'){e.preventDefault();saveCurrent()}});
+$('delBtn').onclick=async()=>{
+  if(!selected||!confirm('Delete '+selected.file+' from GitHub?'))return;
+  if(!gh.token){toast('View-only — add a token in ⚙ settings to edit');return}
+  try{
+    await api('/contents/Brain/'+encodeURIComponent(selected.file),'DELETE',
+      {message:'delete '+selected.file+' via brain',sha:selected.sha,branch:gh.branch});
+    toast('Deleted '+selected.file);closeSide();await loadAll();
+  }catch(e){toast('Delete failed: '+e.message)}
+};
+
+// ---------- new node ----------
+const dlg=$('newDlg');
+$('newNode').onclick=()=>{
+  if(!gh||!gh.token){toast('View-only — add a token in ⚙ settings to edit');return}
+  $('nnName').value='';dlg.showModal();
+};
+$('nnCancel').onclick=()=>dlg.close();
+$('nnCreate').onclick=async()=>{
+  let name=$('nnName').value.trim().toLowerCase().replace(/[^a-z0-9-_]+/g,'-').replace(/^-+|-+$/g,'');
+  const type=$('nnType').value;
+  if(!name)return;
+  try{
+    await api('/contents/Brain/'+name+'.md','PUT',
+      {message:'add '+name+' via brain',branch:gh.branch,
+       content:b64enc(`---\nname: ${name}\ntype: ${type}\ndescription: \n---\n\n# ${name}\n\nLink related nodes like [[_HOME]].\n`)});
+    dlg.close();await loadAll();
+    openNode(byName[name],true);
+  }catch(e){toast('Create failed: '+e.message)}
+};
+
+// ---------- misc ----------
+$('rescan').onclick=()=>loadAll().catch(e=>toast('Reload failed: '+e.message));
+$('search').addEventListener('input',e=>searchTerm=e.target.value.trim().toLowerCase());
+function buildLegend(){
+  const el=$('legend');el.style.display='block';
+  el.innerHTML=Object.entries(TYPE_COLORS).map(([t,v])=>`<div class="lg"><span class="dot" style="background:${css(v)}"></span>${t}</div>`).join('')
+    +'<div class="lg" style="margin-top:6px;border-top:1px solid var(--line);padding-top:6px">drag=pin · dbl-click=unpin<br>tap=edit · Ctrl+S=save</div>';
+}
+let toastT;
+function toast(msg){const t=$('toast');t.textContent=msg;t.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('show'),2600)}
+resize();draw();
+</script>
+</body>
+</html>
