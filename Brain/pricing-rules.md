@@ -16,4 +16,9 @@ description: Deep-dive comps, 90% start, 85% auto-accept floor, 7-day drops
 - Below 85% of list: NEVER auto-accept -> alert Breken per [[notifications]] with the offer, wait for his yes/no
 - Price drop: -10% after 7 days with no buyer messages, then re-check comps per [[prompt-repricing]]
 
+## Shipping
+- **Buyer pays shipping** on [[platform-depop]], [[platform-grailed]], and [[platform-ebay]] - calculated/actual shipping at checkout, NOT baked into the list price and NOT free shipping
+- [[platform-facebook]] is local pickup only, no shipping
+- Since comps usually include shipping, note that when anchoring: a buyer-pays listing should sit slightly under a comparable free-shipping comp
+
 Used by [[prompt-inbox-sweep]] and [[prompt-repricing]]. Listing flow: [[workflow-process-items]] + [[listing-optimization]].
